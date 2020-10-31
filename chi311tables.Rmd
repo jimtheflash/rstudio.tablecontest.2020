@@ -1,0 +1,65 @@
+---
+title: "Chicago 311 Data, in Tables"
+author: "Jim Kloet"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+# chunk options
+knitr::opts_chunk$set(echo = TRUE,
+                      message = FALSE,
+                      warning = FALSE)
+# knit html tables
+options(knitr.table.format = "html")
+```
+
+## Overview
+
+Tables are often treated as lesser forms of data visualization, but that is unfair: well-designed tables can support data-driven narratives, and look dapper in the process. Smarter people than me have laid out some principles for creating effective tables - see Show Me the Numbers by Stephen Few, and this paper by dude on twitter - and the `{gt}` package makes it easy to implement those principles in `R`.
+
+I like working with Chicago 311 Service Request data, so here are some tables 
+
+```{r get data, include=FALSE}
+
+service_requests_raw <- readRDS('~/Documents/311_raw.rds')
+```
+
+## Basic Facts: Frequencies And Rankings
+
+Counts of 311 service requests by type reveal that the frequencies of different requests vary a great deal!
+
+```{r request type freq}
+
+# load libraries
+library(tidyverse)
+library(DT)
+library(gt)
+
+# count 311 service requests by type
+request_type_freq <- service_requests_raw %>%
+  group_by(sr_type) %>%
+  summarise(requests = n_distinct(sr_number)) %>%
+  ungroup() %>%
+  arrange(-requests) %>%
+  setNames(c('request type', 'requests')) %>%
+  DT::datatable(options = list(
+    className = 'dt-left', targets = 0
+  )) %>%
+  DT::formatRound('requests', digits = 0)
+  
+#   gt() %>%
+#   fmt_number(columns = vars(requests),
+#              decimals = 0) %>%
+#   tab_header(
+#     title = "Count of 311 Service Requests, By Type",
+#     subtitle = paste0('Requests from ', 
+#                       as.Date(min(service_requests_raw$created_date)), 
+#                       ' to ', 
+#                       as.Date(max(service_requests_raw$created_date)))
+#   ) %>%
+#   opt_align_table_header('left')
+# 
+request_type_freq
+```
+That looks fine and readable, but the title is quite small, and there's no way to sort anything!

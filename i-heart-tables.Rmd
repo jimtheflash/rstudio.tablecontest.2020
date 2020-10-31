@@ -1,0 +1,109 @@
+---
+title: "I ❤️ Tables"
+author: "Jim Kloet"
+date: "9/23/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      message = FALSE,
+                      warning = FALSE,
+                      fig.dim = c(5, 3))
+
+# tidyverse used throughout, load it all here
+library(tidyverse)
+```
+
+## Introduction
+
+Tables are dope! They're probably the best way to visualize data when:
+
+* It is important to display precise, specific values
+* Your data include several different types (like text, numbers, and images)
+
+Tables can also be terrific for nested or grouped data, and in certain cases when interactivity is necessary, like sorting data by user-defined columns.
+
+There are several `R` packages for producing dope tables, covering a variety of use cases. This tutorial is intended to give you some ideas for how and when to use tables, and why tables are a better option than alternative visualizations in some situations.
+
+I must give credit to Stephen Few and his terrific books, especially Show Me The Numbers, as the source for most of my perspective and understanding with regard to data visualizations, including tables. Tables are data visualizations too, even if popular software for enterprise analytics often treats them as 
+
+## Specific Values
+
+Charts and graphs are effective tools for communicating relationships and summaries about data. Our brains can process visual relationships pretty quickly, but they're not great at extracting precise values from visualizations, without a lot of help.
+
+Here's an example using the `palmerpenguins` data.
+
+```{r specific values 1}
+
+library(palmerpenguins)
+
+# If we want to communicate the average bill and flipper lengths of the different species of penguins, we can do that pretty easily with a number of visualizations. Here's a simple bar graph:
+
+long_data <- penguins %>%
+  group_by(species) %>%
+  summarise(across(matches('_length'),
+            ~mean(.x, na.rm = TRUE))) %>%
+  ungroup() %>%
+  arrange(bill_length_mm) %>%
+  mutate(species = fct_inorder(species)) %>%
+  rename_with(~gsub('_mm', '', .x)) %>%
+  rename_with(~gsub('_', ' ', .x)) %>%
+  pivot_longer(-species) 
+
+bars <- long_data %>%
+  ggplot(., aes(x = species, y = value)) +
+    geom_bar(stat = 'identity') +
+    facet_wrap(~name) +
+    theme_bw() +
+    labs(x = NULL, y = "mm")
+
+bars
+```
+
+Here it's pretty easy to see that the Adelie penguins have shorter bills than Gentoo or Chinstrap penguins, and Gentoo penguins have longer flippers than the other species. This is great if we want to know some relative information about these penguins, but if we want to know anything more specific - how much shorter are Adelie bills than Gentoo? How much longer are Gentoo flippers than Chistrap? - we'll need a different approach.
+
+For a bar graph like this, labels are probably ok:
+
+```{r specific values 2}
+
+bars + geom_text(aes(label = round(value, 3)))
+
+```
+
+But now you've gotta futz around with where the labels should be, and frankly, if your goal is for your audience to walk away knowing "Adelie penguin bills on average are 38.791 mm in length," all the stuff in the bar plots, aside from the species labels and the numbers on the bars, is superfluous and distracts from your goal.
+
+Time for tables!
+
+```{r ugly specific values table}
+
+# Since we're already loaded the tidyverse package, we can print a tibble, but we'll want to widen our data first (which is how it's structured in the source)
+
+wide_data <- long_data %>%
+  pivot_wider(names_from = name, values_from = value)
+
+wide_data
+
+```
+
+So, that's a table! The data are arranged in rows and columns; there are headers indicating the dimensions, and also the data types. But there's no doubt that this is an ugly table, beyond the threshold where it becomes an impediment to communicating the information contained therein.
+
+We can do better! A few things need to happen first:
+
+* Sensible rounding - be as precise as you need to be to effectively and honestly communicate your message, and no more; too many significant digits impedes readability.
+* Meaningful ordering - as with charts and graphs, the ordering of things in tables is important, as it directs your audience's attention and can impart narrative
+
+```{r less ugly specific values table}
+
+library(kableExtra)
+
+kbl(wide_data, digits = 2) %>%
+  kable_styling(full_width = FALSE)
+
+```
+
+
+
+## Different Data Types
+
+Sometimes it is important to simultaneously display several types of information, like an image of an athlete, along with their name and position, as well as their height in cm and weight in kg. 
