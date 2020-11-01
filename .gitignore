@@ -4,4 +4,5 @@
 .Ruserdata
 .html
 .DS_Store
-rsconnect/*
+rsconnect/documents/
+rsconnect/
