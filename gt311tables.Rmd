@@ -6,7 +6,7 @@ output:
   html_document:
     theme: flatly
     toc: true
-    code_folding: "show"
+    code_folding: "hide"
 
 ---
 
@@ -41,7 +41,7 @@ Tables are often treated as lesser forms of data visualization, but that is unfa
 * Easy to add row-striping, to facilitate visual tracking of values within row
 * Minimizing non-data ink by using subtle divisions between cells and columns (if any!) and other non-obtrusive stylistic additions to the table
 
-The `{gt}` package makes it easy to implement all of this in `R`, using the familiar syntax of the `tidyverse`. For a great set of tutorials, I recommend the 
+The `{gt}` package makes it easy to implement all of this in `R`, using the familiar syntax of the `tidyverse`. For a nice tutorial, I recommend the checking out [The Mockup Blog](https://themockup.blog/posts/2020-05-16-gt-a-grammer-of-tables/).
 
 I like working with Chicago 311 service request data, so this document makes some tables using those data, which all available from the [Chicago Data Portal](https://data.cityofchicago.org/Service-Requests/311-Service-Requests/v6vf-nfxy). The data in these tables includes service requests created on or between 31 Oct 2019 and 31 Oct 2020, and excludes the two most common requests, 311 information requests and aircraft noise complaints, because they are not associated with specific geographic locations in the available 311 request data: all information requests are associated with the main 311 office location, and all aircraft noise complaints are associated with airport locations.
 
@@ -96,7 +96,7 @@ tidy_311 <- raw_311 %>%
 
 ### Most Frequent Service Requests
 
-This table summarizes the most frequent service requests by type, so we can identify the most frequent types of 311 service requests.
+This table summarizes the most frequent service requests by type, so we can identify the most frequent types of 311 service requests. As explained in the table, a service request record arises when an individual contacts 311 to report an issue; complaints that reference the same issue are assigned the same parent issue. For instance, if there are three service requests about the same abandoned vehicle, that would be reflected in the tables below as three service requests, and one parent issue.
 
 ```{r most frequent requests}
 
@@ -134,7 +134,7 @@ tidy_311 %>%
 
 $~$
 
-Graffiti removal tops the list of Total Requests, as well as the list of Parent Issues (and by a wide margin!). The only request type on the list with more than two requests per parent issue was street light outages (which is why I used that example in the footnotes). I was also surprised to see that there was only one request per parent issue for abandoned vehicle complaints, which makes me think that that request means something very specific, but outside the scope of this writeup.
+Nothing fancy here, or necessary. The table header, footnotes, and source information are easy to read and don't distract from the rest of the data. 
 
 ### Service Requests And Community Areas
 
@@ -191,9 +191,7 @@ tidy_311 %>%
 
 $~$
 
-This table, despite being fairly long, is still pretty digestible. While I think the sorting (Total Requests) is sensible, it is also feasible that readers would want to sort by other criteria. In these cases, a table made with the `{reactable}` or `{DT}` libraries may be a better option, but comes with limitations: neither of those libraries enable nice titles, or the footnotes and source information found here. If the information found in those sections can be added elsewhere, then those options might be better for these use cases.
-
-(And obviously an interactive map would be a reasonable way to visualize these data!)
+This table, despite being fairly long, is still pretty digestible. While I think the default sorting (Total Requests descending) is sensible, it is also feasible that readers would want to sort by other criteria. In these cases, a table made with the `{reactable}` or `{DT}` libraries, which have sortable columns by default, may be a better option. And obviously an interactive map would be a reasonable way to visualize these data!
 
 ### Top Service Requests by Community Area
 
@@ -229,7 +227,7 @@ tidy_311 %>%
     locations = cells_row_groups()
   ) %>%
   tab_header(title = "Top 311 Service Request Types by Chicago Community Area",
-             subtitle = "Includes community areas with at least 15,000 total requests from Oct 31 2019 through Oct 31 2020") %>%
+             subtitle = "Sorted by Community Area population; includes community areas with at least 15,000 total requests from Oct 31 2019 through Oct 31 2020") %>%
   opt_align_table_header("left") %>%
   tab_footnote(footnote = "311 information requests and complaints about aircraft noise were excluded",
                locations = cells_title(groups = "subtitle")) %>%
@@ -247,10 +245,13 @@ tidy_311 %>%
   cols_align(align = "right", columns = vars(`Total Requests`, `Parent Issues`))
 
 ```
+
 $~$
 
-This is a lot cleaner than I expected it to be! This table is very long, even after filtering to a subset of community areas; it would be nice to be able to page between community area lists (with may be feasible with `{reactable}` or `{DT}`), but for a website or blog this formatting is still digestible, I think.
+This is a lot cleaner than I expected it to be! This table is very long, even after filtering to a subset of community areas; it would be nice to be able to page between community area lists (which may be feasible with `{reactable}` or `{DT}`), but for a website or blog this formatting is still digestible, I think.
 
 ### Summary
 
-Building well-designed tables in `R` is easy with the `tidyverse` and `{gt}` library. 
+Building well-designed tables in `R` is easy with the `tidyverse` and `{gt}` library. These tables had clear titles, footnotes, and source information; used striping, column alignments, and precision to facilitate readability; and minimized non-data ink to reduce distraction and focus attention on the data.
+
+These tables were certainly not perfect, however. As noted above, these tables are pretty long; making them sortable or filterable would certainly enable readers to access information more quickly and easily. In addition, some of these data would be better presented in a map. But the goal here was to use `{gt}` to make tables that wouldn't look out of place in a professional publication, and I think mission accomplished here.
