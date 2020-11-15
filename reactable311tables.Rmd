@@ -6,23 +6,28 @@ output:
   html_document:
     theme: flatly
     toc: true
-    code_folding: "show"
+    code_folding: "hide"
 
 ---
 
 <style type="text/css">
 
   body{
-  font-size: 12pt;
+  font-size: 10pt;
+  }
+  
+  .title{
+  font-size: 16pt;
   }
   
   <!-- uncomment below for full width tables (look too wide for my tastes) -->
-  <!-- div.main-container { -->
-  <!-- width: 100%; -->
-  <!-- max-width: unset; -->
-  <!-- } -->
-  
+  div.main-container {
+  width: 100%;
+  max-width: unset;
+  }
+
 </style>
+
 
 ```{r setup, include=FALSE}
 # chunk options
@@ -33,11 +38,9 @@ knitr::opts_chunk$set(echo = TRUE,
 
 ### Overview
 
-Tables are often treated as lesser forms of data visualization, but that is unfair: well-designed tables can support data-driven narratives, and look dapper in the process. Smarter people than me have laid out some principles for creating effective tables - see [Show Me the Numbers](https://www.amazon.com/Show-Me-Numbers-Designing-Enlighten/dp/0970601999) by Stephen Few, and [this 2020 paper](https://www.cambridge.org/core/journals/journal-of-benefit-cost-analysis/article/ten-guidelines-for-better-tables/74C6FD9FEB12038A52A95B9FBCA05A12) from Jonathan A. Schwabish (summarized on [this thread](https://twitter.com/jschwabish/status/1290323581881266177)).
+I like working with Chicago 311 service request data, so this document makes some tables using those data, which all available from the [Chicago Data Portal](https://data.cityofchicago.org/Service-Requests/311-Service-Requests/v6vf-nfxy). As it turns out, summarizing these data can result in tables that are quite long, extending well beyond the vertical length of most screens. The negative effects of this can mitigated by incorporating interactivity into the tables, and `{reactable}` makes that easy to accomplish.
 
-I like working with Chicago 311 service request data, so this document makes some tables using those data, which all available from the [Chicago Data Portal](https://data.cityofchicago.org/Service-Requests/311-Service-Requests/v6vf-nfxy). As it turns out, summarizing these data can result in tables that are quite long, extending well beyond the vertical length of most screens. The negative effects of this can mitigated by incorporating interactivity into 
-
-The data in these tables includes service requests created on or between 31 Oct 2019 and 31 Oct 2020, and excludes the two most common requests, 311 information requests and aircraft noise complaints, because they are not associated with specific geographic locations in the available 311 request data: all information requests are associated with the main 311 office location, and all aircraft noise complaints are associated with airport locations.
+The data in this table includes service requests created on or between 31 Oct 2019 and 31 Oct 2020, and excludes the two most common requests, 311 information requests and aircraft noise complaints, because they are not associated with specific geographic locations in the available 311 request data: all information requests are associated with the main 311 office location, and all aircraft noise complaints are associated with airport locations.
 
 ```{r libraries and data}
 
@@ -47,7 +50,6 @@ library(rvest)
 library(reactable)
 
 # read 311 data
-
 raw_311 <- try(readRDS('./data/lastyear_311_requests.rds'), silent = TRUE)
 
 if (class(raw_311) == 'try-error') {
@@ -86,97 +88,56 @@ tidy_311 <- raw_311 %>%
   ungroup() %>%
   inner_join(ca_lu, by = 'community_area') %>%
   inner_join(raw_ca, by = "ca_name")
+
 ```
 
-### Most Frequent Service Requests
+### Service Requests By Community Area
 
-This table summarizes the most frequent service requests by type, so we can identify the most frequent types of 311 service requests.
+The table initially displays the total number of service requests and requests per 100,000 residents, by Community Area. To see counts of specific request types within each Community Area, click on the row. The table is sortable by any of the columns. 
 
-```{r most frequent requests}
+```{r request-table}
 
-the_table <- tidy_311 %>%
-  group_by(`Service Request Type` = sr_type) %>%
-  summarise(`Total Requests` = n_distinct(sr_number),
-            `Parent Issues` = n_distinct(grouping_sr_number)) %>%
-  mutate(`Requests Per Parent Issue` = `Total Requests` / `Parent Issues`) %>%
-  arrange(desc(`Total Requests`)) %>%
+table_data <- tidy_311 %>%
+  group_by(`Community Area` = ca_name, 
+           `Estimated Population` = ca_est_pop,
+           `Service Request Type` = sr_type) %>%
+  summarise(`Total Requests` = n_distinct(sr_number)) %>%
+  mutate(`Requests Per 100K` = (`Total Requests` / `Estimated Population`) * 100000) %>%
+  arrange(desc(`Total Requests`))
+
+the_table <- table_data %>%
   reactable(
+    groupBy = "Community Area",
     columns = list(
-      `Total Requests` = colDef(
-        name = 'Total Requests',
-        format = colFormat(separators = TRUE)
-        ),
-      `Parent Issues` = colDef(
-        name = 'Parent Issues',
+      `Estimated Population` = colDef(
+        name = 'Est. Population',
+        aggregate = 'max',
         format = colFormat(separators = TRUE)
       ),
-      `Requests Per Parent Issue` = colDef(
-        name = 'Requests Per Parent Issue',
-        format = colFormat(digits = 3)
+      `Total Requests` = colDef(
+        name = 'Total Requests',
+        aggregate = 'sum',
+        format = colFormat(separators = TRUE)
+        ),
+      `Requests Per 100K` = colDef(
+        name = 'Requests Per 100K',
+        aggregate = JS("function(values, rows) {
+        var totalReqs = 0
+        var pop = 0
+        rows.forEach(function(row) {
+          totalReqs += row['Total Requests']
+          pop = Math.max(row['Estimated Population'])
+        })
+        return (totalReqs / pop) * 100000
+      }"),
+        format = colFormat(digits = 1, separators = TRUE)
       )
-    ))
+    ),
+    highlight = TRUE,
+    defaultSorted = 'Total Requests',
+    defaultSortOrder = 'desc',
+    showPageSizeOptions = FALSE, 
+    defaultPageSize = 100)
 
-# table title 
-div(
-  class = "freqs",
-  div(
-    class = "title",
-    h2("2014-2019 Salary and Playoff Appearances"),
-    "QBs limited to playoff games where they threw a pass"
-  ),
-  tbl,
-  tags$span(style = "color:#C8C8C8", "TABLE: @THOMAS_MOCK | DATA: PRO-FOOTBALL-REFERENCE.COM & OVERTHECAP.COM")
-)
+the_table
 ```
-
-$~$
-
-Graffiti removal tops the list of Total Requests, as well as the list of Parent Issues (and by a wide margin!). The only request type on the list with more than two requests per parent issue was street light outages (which is why I used that example in the footnotes). I was also surprised to see that there was only one request per parent issue for abandoned vehicle complaints, which makes me think that that request means something very specific, but outside the scope of this writeup.
-
-### Service Requests And Community Areas
-
-This table summarizes 311 requests by community areas, so we can identify which community areas are submitting the most service requests. I thought total requests per person would be interesting as a way to gauge how frequently residents of an area were engaging with the 311 service, and I thought that parent requests per square mile might be an interesting way of estimating how many issues need addressing across community areas. This table is sorted by the Total Requests column.
-
-
-```{r sr by ca}
-
-tidy_311 %>%
-  group_by(`Community Area` = ca_name) %>%
-  summarise(`Est. Population` = max(ca_est_pop),
-            `Area (Square Miles)` = max(ca_sq_mi),
-            `Total Requests` = n_distinct(sr_number),
-            `Parent Issues` = n_distinct(grouping_sr_number)) %>%
-  mutate(`Requests Per Person` = `Total Requests` / `Est. Population`,
-         `Parent Issues Per Sq. Mi.` = `Parent Issues` / `Area (Square Miles)`) %>%
-  filter(`Total Requests` >= 15000) %>%
-  arrange(desc(`Total Requests`))
-```
-
-$~$
-
-(And obviously an interactive map would be a reasonable way to visualize these data!)
-
-### Top Service Requests by Community Area
-
-This table summarizes the top five service requests types by community area, sorted by community area population. This makes it possible to identify community areas with unique mixes of service request types.
-
-```{r interaction table}
-
-tidy_311 %>%
-  group_by(ca_name) %>%
-  filter(n_distinct(sr_number) >= 15000) %>%
-  ungroup() %>%
-  group_by(`Community Area` = ca_name, `Service Request Type` = sr_type) %>%
-  summarise(pop = max(ca_est_pop),
-            `Total Requests` = n_distinct(sr_number),
-            `Parent Issues` = n_distinct(grouping_sr_number)) %>%
-  arrange(desc(pop), desc(`Total Requests`)) %>%
-  mutate(rank = row_number()) %>%
-  filter(rank <= 5) %>%
-  select(-pop, -rank)
-  
-```
-
-$~$
-
-### Summary
